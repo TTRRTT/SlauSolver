@@ -10,13 +10,30 @@ qt_add_executable(SlauSolver
     main.cpp
     mainwindow.cpp
     mainwindow.h
-    mainwindow.ui
+
+)
+
+set(MATRIX_LIB_PATH ${CMAKE_SOURCE_DIR}/../libs/matrix/s21_matrix.a)
+add_custom_command(
+    OUTPUT ${MATRIX_LIB_PATH}
+    COMMAND make
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/../libs/matrix
+    COMMENT "Building matrix library..."
+    VERBATIM
+)
+add_custom_target(BuildMatrixLib
+    DEPENDS ${MATRIX_LIB_PATH}
+)
+
+target_include_directories(SlauSolver PRIVATE
+    ${CMAKE_SOURCE_DIR}/../libs/matrix
 )
 
 target_link_libraries(SlauSolver
     PRIVATE
         Qt::Core
         Qt::Widgets
+        ${MATRIX_LIB_PATH}
 )
 
 include(GNUInstallDirs)

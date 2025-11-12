@@ -1,0 +1,3 @@
+[submodule "libs/matrix"]
+	path = libs/matrix
+	url = ssh://git@git-ssh.21-school.ru:2222/students_repo/lavernpe/C6_s21_matrix.ID_353530-2.git

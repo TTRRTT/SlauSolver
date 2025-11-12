@@ -2,12 +2,8 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
-
-QT_BEGIN_NAMESPACE
-namespace Ui {
-class MainWindow;
-}
-QT_END_NAMESPACE
+#include <QTextEdit>
+#include <QPushButton>
 
 class MainWindow : public QMainWindow
 {
@@ -17,7 +13,14 @@ public:
     MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
 
+private slots:
+    void onSolveClicked();
+
 private:
-    Ui::MainWindow *ui;
+    QTextEdit *inputMatrix;
+    QTextEdit *inputVector;
+    QPushButton *solveButton;
+    QTextEdit *resultView;
 };
+
 #endif // MAINWINDOW_H
