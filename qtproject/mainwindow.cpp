@@ -1,103 +1,184 @@
 #include "mainwindow.h"
-#include "s21_matrix.h"
+
 #include <QVBoxLayout>
 #include <QHBoxLayout>
-#include <QStringList>
 #include <QMessageBox>
+#include <QTextEdit>
 #include <QLabel>
+#include <QHeaderView>
+#include <QTableWidgetItem>
+#include <QKeyEvent>
+#include <QApplication>
+#include <QClipboard>
+#include "s21_matrix.h"
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
 {
     QWidget *centralWidget = new QWidget(this);
     setCentralWidget(centralWidget);
+
     QVBoxLayout *mainLayout = new QVBoxLayout(centralWidget);
 
-    QLabel *labelA = new QLabel("Матрица A (коэффициенты):", this);
-    QLabel *labelB = new QLabel("Вектор b (свободные члены):", this);
-    QLabel *labelResult = new QLabel("Решение x:", this);
+    QHBoxLayout *resizeLayout = new QHBoxLayout();
 
-    inputMatrix = new QTextEdit(this);
-    inputMatrix->setPlaceholderText(
-        "Введите матрицу A (разделитель: пробел, строки: Enter)\n"
-        "Пример:\n"
-        "2 1 -1\n"
-        "-3 -1 2\n"
-        "-2 1 2"
-        );
+    QLabel *resizeLabel = new QLabel("Число уравнений:");
+    resizeSpinBox = new QSpinBox();
+    resizeSpinBox->setRange(2, 12);
+    resizeSpinBox->setValue(3);
 
-    inputVector = new QTextEdit(this);
-    inputVector->setMaximumHeight(60);
-    inputVector->setPlaceholderText(
-        "Введите вектор b (разделитель: пробел, одна строка)\n"
-        "Пример:\n"
-        "8 -11 -3"
-        );
+    QPushButton *resizeButton = new QPushButton("Изменить размер");
+    connect(resizeButton, &QPushButton::clicked, this, &MainWindow::onResizeMatrix);
 
-    solveButton = new QPushButton("Решить", this);
+    resizeLayout->addWidget(resizeLabel);
+    resizeLayout->addWidget(resizeSpinBox);
+    resizeLayout->addWidget(resizeButton);
 
-    resultView = new QTextEdit(this);
-    resultView->setReadOnly(true);
+    mainLayout->addLayout(resizeLayout);
+
+    QLabel *labelA = new QLabel("Матрица A и вектор b:");
+    matrixTable = new QTableWidget(resizeSpinBox->value(), resizeSpinBox->value() + 1, this);
+    matrixTable->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+    QFont font = matrixTable->horizontalHeader()->font();
+    font.setBold(true);
+    matrixTable->horizontalHeader()->setFont(font);
+    matrixTable->verticalHeader()->setFont(font);
+    updateColumnHeaders();
+    centerTableItems();
 
     mainLayout->addWidget(labelA);
-    mainLayout->addWidget(inputMatrix);
-    mainLayout->addWidget(labelB);
-    mainLayout->addWidget(inputVector);
+    mainLayout->addWidget(matrixTable);
+
+    solveButton = new QPushButton("Решить", this);
+    connect(solveButton, &QPushButton::clicked, this, &MainWindow::onSolveClicked);
     mainLayout->addWidget(solveButton);
-    mainLayout->addWidget(labelResult);
+
+    resultLabel = new QLabel("Результат:");
+    resultView = new QTextEdit(this);
+    resultView->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
+    resultView->setMaximumHeight(150);
+    resultView->setReadOnly(true);
+    mainLayout->addWidget(resultLabel);
     mainLayout->addWidget(resultView);
 
-    connect(solveButton, &QPushButton::clicked, this, &MainWindow::onSolveClicked);
-
     setWindowTitle("Калькулятор СЛАУ");
-    resize(600, 500);
+    resize(700, 600);
+
+    onResizeMatrix();
 }
 
-MainWindow::~MainWindow()
+void MainWindow::keyPressEvent(QKeyEvent *event)
 {
+    if (event->modifiers() == Qt::ControlModifier && event->key() == Qt::Key_C) {
+        copyTableToClipboard();
+    } else if (event->modifiers() == Qt::ControlModifier && event->key() == Qt::Key_V) {
+        pasteTableFromClipboard();
+    } else {
+        QMainWindow::keyPressEvent(event);
+    }
 }
 
-void removeMatrixes(QVector<matrix_t*> data)
+void MainWindow::copyTableToClipboard()
 {
-    for (int i = 0; i < data.count(); ++i) {
-        s21_remove_matrix(data[i]);
+    QString text;
+    int rows = matrixTable->rowCount();
+    int cols = matrixTable->columnCount();
+
+    for (int i = 0; i < rows; ++i) {
+        for (int j = 0; j < cols; ++j) {
+            QTableWidgetItem *item = matrixTable->item(i, j);
+            QString data = item ? item->text() : "";
+            text += data;
+            if (j < cols - 1) text += "\t";
+        }
+        if (i < rows - 1) text += "\n";
+    }
+
+    QApplication::clipboard()->setText(text);
+}
+
+void MainWindow::pasteTableFromClipboard()
+{
+    QString text = QApplication::clipboard()->text();
+    QStringList rows = text.split('\n');
+
+    int r = 0;
+    for (const QString &row : std::as_const(rows)) {
+        if (r >= matrixTable->rowCount()) break;
+        QStringList columns = row.split('\t');
+        int c = 0;
+        for (const QString &col : std::as_const(columns)) {
+            if (c >= matrixTable->columnCount()) break;
+            QTableWidgetItem *item = matrixTable->item(r, c);
+            if (!item) {
+                item = new QTableWidgetItem();
+                matrixTable->setItem(r, c, item);
+            }
+            item->setText(col.trimmed());
+            c++;
+        }
+        r++;
+    }
+}
+
+void MainWindow::updateColumnHeaders()
+{
+    int n = matrixTable->columnCount();
+    QStringList headers;
+    for (int j = 0; j < n - 1; ++j) {
+        headers << QString("x%1").arg(j + 1);
+    }
+    headers << "b";
+    matrixTable->setHorizontalHeaderLabels(headers);
+}
+
+void MainWindow::centerTableItems()
+{
+    int rows = matrixTable->rowCount();
+    int cols = matrixTable->columnCount();
+
+    for (int i = 0; i < rows; ++i) {
+        for (int j = 0; j < cols; ++j) {
+            QTableWidgetItem *item = matrixTable->item(i, j);
+            if (!item) {
+                item = new QTableWidgetItem();
+                matrixTable->setItem(i, j, item);
+            }
+            item->setTextAlignment(Qt::AlignCenter);
+        }
+    }
+}
+
+void MainWindow::onResizeMatrix()
+{
+    int n = resizeSpinBox->value();
+    matrixTable->setRowCount(n);
+    matrixTable->setColumnCount(n + 1);
+    updateColumnHeaders();
+    centerTableItems();
+}
+
+void removeMatrixes(QVector<matrix_t*> &&data)
+{
+    for (auto matrix : data) {
+        s21_remove_matrix(matrix);
     }
 }
 
 void MainWindow::onSolveClicked()
 {
-    QStringList rows = inputMatrix->toPlainText().trimmed().split('\n');
-    if (rows.isEmpty()) {
-        QMessageBox::warning(this, "Ошибка", "Введите матрицу A");
+    int n = matrixTable->rowCount();
+    if (n <= 0) {
+        QMessageBox::warning(this, "Ошибка", "Матрица пуста");
         return;
     }
 
-    int n = rows.size();
     matrix_t A, b, A_inv, x;
     int code;
 
     code = s21_create_matrix(n, n, &A);
     if (code != 0) {
         QMessageBox::critical(this, "Ошибка", "Не удалось создать матрицу A");
-        return;
-    }
-
-    for (int i = 0; i < n; ++i) {
-        QStringList nums = rows[i].split(' ', Qt::SkipEmptyParts);
-        if (nums.size() != n) {
-            QMessageBox::warning(this, "Ошибка", QString("Неверное количество элементов в строке %1").arg(i + 1));
-            s21_remove_matrix(&A);
-            return;
-        }
-        for (int j = 0; j < n; ++j) {
-            A.matrix[i][j] = nums[j].toDouble();
-        }
-    }
-
-    QStringList bList = inputVector->toPlainText().trimmed().split(' ', Qt::SkipEmptyParts);
-    if (bList.size() != n) {
-        QMessageBox::warning(this, "Ошибка", "Размер вектора b не совпадает с размером матрицы");
-        s21_remove_matrix(&A);
         return;
     }
 
@@ -109,13 +190,36 @@ void MainWindow::onSolveClicked()
     }
 
     for (int i = 0; i < n; ++i) {
-        b.matrix[i][0] = bList[i].toDouble();
+        for (int j = 0; j < n; ++j) {
+            QTableWidgetItem *item = matrixTable->item(i, j);
+            QString text = item ? item->text() : "";
+            bool ok;
+            double val = text.toDouble(&ok);
+            if (!ok) {
+                QMessageBox::warning(this, "Ошибка", QString("Некорректное значение в ячейке [%1][%2]").arg(i+1).arg(j+1));
+                removeMatrixes({&A, &b});
+                return;
+            }
+            A.matrix[i][j] = val;
+        }
+
+        // Последний столбец — вектор b
+        QTableWidgetItem *item = matrixTable->item(i, n);
+        QString text = item ? item->text() : "";
+        bool ok;
+        double val = text.toDouble(&ok);
+        if (!ok) {
+            QMessageBox::warning(this, "Ошибка", QString("Некорректное значение вектора b в строке %1").arg(i+1));
+            removeMatrixes({&A, &b});
+            return;
+        }
+        b.matrix[i][0] = val;
     }
 
     double det;
     code = s21_determinant(&A, &det);
     if (code != 0 || det == 0) {
-        QMessageBox::critical(this, "Ошибка", "Матрица A вырождена (det = 0), решение невозможно.");
+        QMessageBox::critical(this, "Ошибка", "Матрица A вырождена (определитель = 0), решение невозможно.");
         removeMatrixes({&A, &b});
         return;
     }
@@ -142,4 +246,8 @@ void MainWindow::onSolveClicked()
     resultView->setText(result);
 
     removeMatrixes({&A, &b, &A_inv, &x});
+}
+
+MainWindow::~MainWindow()
+{
 }

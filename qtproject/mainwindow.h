@@ -2,8 +2,13 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
-#include <QTextEdit>
+#include <QTableWidget>
 #include <QPushButton>
+#include <QVBoxLayout>
+#include <QHBoxLayout>
+#include <QSpinBox>
+#include <QLabel>
+#include <QTextEdit>
 
 class MainWindow : public QMainWindow
 {
@@ -15,12 +20,23 @@ public:
 
 private slots:
     void onSolveClicked();
+    void onResizeMatrix();
+
+protected:
+    void keyPressEvent(QKeyEvent *event) override;
 
 private:
-    QTextEdit *inputMatrix;
-    QTextEdit *inputVector;
+    QTableWidget *matrixTable;
     QPushButton *solveButton;
+    QSpinBox *resizeSpinBox;
+    QLabel *resultLabel;
     QTextEdit *resultView;
+
+    void copyTableToClipboard();
+    void pasteTableFromClipboard();
+
+    void updateColumnHeaders();
+    void centerTableItems();
 };
 
 #endif // MAINWINDOW_H
