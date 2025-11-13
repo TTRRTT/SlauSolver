@@ -9,6 +9,8 @@
 #include <QSpinBox>
 #include <QLabel>
 #include <QTextEdit>
+#include "dbmanager.h"
+#include "loginwindow.h"
 
 class MainWindow : public QMainWindow
 {
@@ -21,6 +23,7 @@ public:
 private slots:
     void onSolveClicked();
     void onResizeMatrix();
+    void onLoginClicked();
 
 protected:
     void keyPressEvent(QKeyEvent *event) override;
@@ -28,6 +31,7 @@ protected:
 private:
     QTableWidget *matrixTable;
     QPushButton *solveButton;
+    QPushButton *loginButton;
     QSpinBox *resizeSpinBox;
     QLabel *resultLabel;
     QTextEdit *resultView;
@@ -37,6 +41,11 @@ private:
 
     void updateColumnHeaders();
     void centerTableItems();
+    void updateLoginButton();
+
+    DBManager dbManager;
+    LoginWindow *loginWindow = nullptr;
+    int currentUserId = -1;
 };
 
 #endif // MAINWINDOW_H

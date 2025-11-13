@@ -10,11 +10,14 @@
 #include <QKeyEvent>
 #include <QApplication>
 #include <QClipboard>
+#include "dbmanager.h"
 #include "s21_matrix.h"
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
 {
+    dbManager.connectToDatabase("localhost", "slau_solver", "postgres", "");
+
     QWidget *centralWidget = new QWidget(this);
     setCentralWidget(centralWidget);
 
@@ -30,11 +33,16 @@ MainWindow::MainWindow(QWidget *parent)
     QPushButton *resizeButton = new QPushButton("Изменить размер");
     connect(resizeButton, &QPushButton::clicked, this, &MainWindow::onResizeMatrix);
 
-    resizeLayout->addWidget(resizeLabel);
-    resizeLayout->addWidget(resizeSpinBox);
-    resizeLayout->addWidget(resizeButton);
+    loginButton = new QPushButton("Войти", this);
+    connect(loginButton, &QPushButton::clicked, this, &MainWindow::onLoginClicked);
 
-    mainLayout->addLayout(resizeLayout);
+    QHBoxLayout *topLayout = new QHBoxLayout();
+    topLayout->addWidget(loginButton);
+    topLayout->addWidget(resizeLabel);
+    topLayout->addWidget(resizeSpinBox);
+    topLayout->addWidget(resizeButton);
+
+    mainLayout->addLayout(topLayout);
 
     QLabel *labelA = new QLabel("Матрица A и вектор b:");
     matrixTable = new QTableWidget(resizeSpinBox->value(), resizeSpinBox->value() + 1, this);
@@ -203,7 +211,6 @@ void MainWindow::onSolveClicked()
             A.matrix[i][j] = val;
         }
 
-        // Последний столбец — вектор b
         QTableWidgetItem *item = matrixTable->item(i, n);
         QString text = item ? item->text() : "";
         bool ok;
@@ -246,6 +253,30 @@ void MainWindow::onSolveClicked()
     resultView->setText(result);
 
     removeMatrixes({&A, &b, &A_inv, &x});
+}
+void MainWindow::onLoginClicked()
+{
+    if (!loginWindow) {
+        loginWindow = new LoginWindow(&dbManager, this);
+        connect(loginWindow, &QDialog::finished, this, [this](int result) {
+            Q_UNUSED(result);
+            currentUserId = loginWindow->getUserId();
+            updateLoginButton();
+        });
+    }
+
+    loginWindow->show();
+    loginWindow->raise();
+    loginWindow->activateWindow();
+}
+
+void MainWindow::updateLoginButton()
+{
+    if (currentUserId != -1) {
+        loginButton->setText("Аккаунт");
+    } else {
+        loginButton->setText("Войти");
+    }
 }
 
 MainWindow::~MainWindow()

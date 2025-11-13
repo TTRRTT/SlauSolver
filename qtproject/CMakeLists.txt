@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.19)
 project(SlauSolver LANGUAGES CXX)
 
-find_package(Qt6 6.5 REQUIRED COMPONENTS Core Widgets)
+find_package(Qt6 6.5 REQUIRED COMPONENTS Core Widgets Sql)
 
 qt_standard_project_setup()
 
@@ -10,6 +10,8 @@ qt_add_executable(SlauSolver
     main.cpp
     mainwindow.cpp
     mainwindow.h
+    dbmanager.h dbmanager.cpp
+    loginwindow.h loginwindow.cpp
 
 )
 
@@ -33,6 +35,7 @@ target_link_libraries(SlauSolver
     PRIVATE
         Qt::Core
         Qt::Widgets
+        Qt::Sql
         ${MATRIX_LIB_PATH}
 )
 
